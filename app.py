@@ -85,12 +85,6 @@ def run_and_submit_all(selected_agent_name: str, profile: gr.OAuthProfile | None
     submit_url = f"{api_url}/submit"
     file_download_url = f"{api_url}/files"
     
-    # try to take random questions
-    # random_question_url = f"{api_url}/random-question"
-    # NUM_QUESTIONS = 20
-    # questions_data = []
-    # #
-    
     space_id = os.getenv("SPACE_ID")
     agent_code = f"https://huggingface.co/spaces/{space_id}/tree/main" if space_id else "N/A"
 
@@ -105,19 +99,6 @@ def run_and_submit_all(selected_agent_name: str, profile: gr.OAuthProfile | None
             response.raise_for_status()
             questions_data = response.json()
 
-        # try to take random questions
-        # for _ in range(NUM_QUESTIONS):
-        #     response = requests.get(random_question_url, timeout=10)
-        #     response.raise_for_status()
-        #     question = response.json()
-    
-        #     if isinstance(question, dict):
-        #         questions_data.append(question)
-        #     else:
-        #         print("Warning: Unexpected response format:", question)
-        #
-                
-                    
         if not questions_data:
             return "Fetched questions list is empty or invalid format.", None
         print(f"Fetched {len(questions_data)} questions.")

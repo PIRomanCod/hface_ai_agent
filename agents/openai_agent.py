@@ -1,40 +1,20 @@
 from typing import List, Dict, Any, Optional
 import os
-# import tempfile
 import re
-import json
-import requests
-# from urllib.parse import urlparse
-# import yt_dlp
-# from dotenv import load_dotenv
+
 from langchain_experimental.tools.python.tool import PythonREPLTool
-from smolagents import (
-    # DuckDuckGoSearchTool,
-    # PythonInterpreterTool,
-    tool,
-    # WikipediaSearchTool
-)
 from langchain_openai import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
-# from langchain.schema import HumanMessage
-# from PIL import Image
-# import pandas as pd
-# import google.generativeai as genai
-# from tabulate import tabulate
 from langchain.tools import BaseTool
 from tools import (
     audio_transcriber,
     extract_text_from_image,
     read_csv_file,
     read_excel_file,
-    # analyze_youtube_video,
     search_web,
-    # search_wikipedia,
-    # is_reversed_text,
     fix_reversed_text,
     chess_board_recognition,
     arvix_search,
-    # youtube_transcript,
     read_file,
     search_wikipedia_info
 )
@@ -47,8 +27,6 @@ from tenacity import (
 )
 from openai import APIError, RateLimitError, APITimeoutError
 
-# load_dotenv()
-# GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 class EnhancedOpenAIAgent:
     def __init__(
@@ -80,75 +58,10 @@ class EnhancedOpenAIAgent:
             The answer to the question
         """
         try:
-            # # First, check if we need to use any tools
-            # tool_used = False
-            # tool_result = None
-            
-            # # Check for file-related tasks
-            # if task_file_path:
-            #     print(f"Related file is: {task_file_path}")
-            #     if task_file_path.endswith('.csv'):
-            #         tool_result = analyze_csv_file(task_file_path, "summary")
-            #         tool_used = True
-            #     elif task_file_path.endswith(('.xlsx', '.xls')):
-            #         tool_result = analyze_excel_file(task_file_path, "summary")
-            #         tool_used = True
-            #     elif task_file_path.endswith(('.jpg', '.jpeg', '.png')):
-            #         # Check if it's a chess board image
-            #         if 'chess' in question.lower() or 'board' in question.lower():
-            #             tool_result = ChessBoardRecognitionTool.forward(task_file_path)
-            #         else:
-            #             tool_result = extract_text_from_image(task_file_path)
-            #         tool_used = True
-            #     elif task_file_path.endswith(('.mp3', '.wav', '.ogg', '.m4a')):
-            #         # Process audio files
-            #         tool_result = SpeechToTextTool(task_file_path)
-            #         tool_used = True
-                    
-            # # Check for URL-related tasks
-            # if not tool_used and 'http' in question.lower():
-            #     if 'youtube.com' in question.lower() or 'youtu.be' in question.lower():
-            #         # Configure Gemini for video analysis
-            #         genai.configure(api_key=GOOGLE_API_KEY)
-            #         tool_result = analyze_youtube_video(question)
-            #         tool_used = True
-            #     elif 'code' in question.lower() or 'interpreter' in question.lower():
-            #         tool_result = PythonInterpreterTool(question)
-            #         tool_used = True
-            #     else:
-            #         tool_result = download_file_from_url(question)
-            #         tool_used = True
-                    
-            # # Check for search-related tasks
-            # if not tool_used:
-            #     if 'wikipedia' in question.lower():
-            #         tool_result = WikipediaSearchTool(question)
-            #         tool_used = True
-            #     else:
-            #         tool_result = DuckDuckGoSearchTool(question)
-            #         tool_used = True
-            
-            # # Prepare the prompt with tool results if available
-            # prompt = self._prepare_prompt(question)
-            
-            # if tool_used and tool_result:
-            #     prompt += f"\n\nAdditional context extracted by tools:\n{tool_result}\n"
-
-            
-            # # Get the answer from the model
-            # response = self.llm.invoke(prompt)
-            
-            # # Clean up the answer
-            # cleaned_answer = self._clean_answer(response)
-            
-            # return cleaned_answer
             context_info = ""
             if task_file_path:
                 context_info = f"\nAttached file path: {task_file_path}\n"
-            
-            # prompt = self._prepare_prompt(question + context_info)
-            # response = self.llm.invoke(prompt)
-            # return self._clean_answer(response)
+
             prompt = question + context_info
             
             agent_kwargs = {"system_message": self.system_prompt} if self.system_prompt else {}
@@ -166,7 +79,6 @@ class EnhancedOpenAIAgent:
 
             return self._clean_answer(response)
 
-        
         except Exception as e:
             if self.verbose:
                 print(f"Error answering question: {str(e)}")
@@ -180,16 +92,16 @@ class EnhancedOpenAIAgent:
             temperature=temperature
         )
 
-     # ====== Механизм повторных попыток ======
+     # ====== Retry during quota errors ======
     @retry(
         retry=retry_if_exception_type((
-            APIError,          # Общие ошибки API
-            RateLimitError,     # Превышение лимитов
-            APITimeoutError     # Таймауты
+            APIError,
+            RateLimitError,
+            APITimeoutError
         )),
-        wait=wait_fixed(15),    # Экспоненциальная задержка: wait=wait_exponential(multiplier=1, max=60)
+        wait=wait_fixed(15),
         stop=stop_after_attempt(3), 
-        reraise=True            # Перевыбрасывает исключение после всех попыток
+        reraise=True
     )
     def _run_agent_with_retry(self, agent, prompt: str) -> str:
         """Выполняет запрос с повторными попытками при ошибках API"""
@@ -200,19 +112,13 @@ class EnhancedOpenAIAgent:
     def _setup_tools(self, additional_tools: Optional[List[BaseTool]]):
         """Set up the available tools."""
         self.tools = [
-            # DuckDuckGoSearchTool(),
-            # WikipediaSearchTool(),
             PythonREPLTool(),
-            # analyze_youtube_video,
             extract_text_from_image,
             read_csv_file,
             read_excel_file,
             search_web,
-            # search_wikipedia,
-            # is_reversed_text,
             fix_reversed_text,
             arvix_search,
-            # youtube_transcript,
             read_file,
             chess_board_recognition,
             audio_transcriber,
@@ -303,12 +209,7 @@ class EnhancedOpenAIAgent:
             The prepared prompt
         """
         prompt = self.system_prompt + "\n\n"
-        
         prompt += f"Question: {question}\n\n"
-        # prompt += "--- RESPONSE FORMAT ---\n"
-        # prompt += "FINAL ANSWER: [your_answer]\n"
-        # prompt += "--- END FORMAT ---\n\n"
-        # prompt += "Please be brief, return only FINAL ANSWER: [your answer]"
         
         return prompt
 

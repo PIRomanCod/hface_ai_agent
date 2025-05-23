@@ -1,12 +1,3 @@
-from typing import Optional
-import os
-import tempfile
-import requests
-from urllib.parse import urlparse
-import pandas as pd
-from tabulate import tabulate
-from PIL import Image
-# from smolagents import tool
 from langchain_core.tools import tool
 import pytesseract
 from PIL import Image
@@ -32,31 +23,6 @@ def read_file(filepath: str) -> str:
     except Exception as e:
         return f"Error reading file {filepath}: {str(e)}"
 
-# @tool
-# def download_file_from_url(url: str, filename: Optional[str] = None) -> str:
-#     """
-#     Download a file from a URL and save it to a temporary location.
-    
-#     Args:
-#         url: The URL to download the file from
-#         filename: Optional filename, will use the URL's basename if not provided
-        
-#     Returns:
-#         Path to the downloaded file
-#     """
-#     response = requests.get(url)
-#     if response.status_code != 200:
-#         return f"Failed to download file from {url}"
-    
-#     temp_dir = tempfile.gettempdir()
-#     if filename is None:
-#         filename = os.path.basename(urlparse(url).path)
-#     filepath = os.path.join(temp_dir, filename)
-    
-#     with open(filepath, 'wb') as f:
-#         f.write(response.content)
-    
-#     return f"File downloaded to {filepath}. You can read this file to process its contents."
 
 @tool
 def extract_text_from_image(image_path: str) -> str:

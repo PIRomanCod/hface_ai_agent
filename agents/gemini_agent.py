@@ -1,21 +1,12 @@
 from typing import List, Dict, Any, Optional
-import os
-import tempfile
+
 import re
-import json
-import requests
-from urllib.parse import urlparse
+
 from langchain_experimental.tools.python.tool import PythonREPLTool
-from smolagents import (
-    tool,
-)
+
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.memory import ConversationBufferMemory
-from langchain.schema import HumanMessage
 import google.generativeai as genai
-from PIL import Image
-import pandas as pd
-from tabulate import tabulate
 from langchain.tools import BaseTool
 from tools import (
     audio_transcriber,
@@ -25,13 +16,10 @@ from tools import (
     analyze_youtube_video,
     search_web,
     search_wikipedia,
-    # is_reversed_text,
     fix_reversed_text,
     chess_board_recognition,
     arvix_search,
-    # youtube_transcript,
     read_file,
-    # search_wikipedia_info
 )
 from langchain.agents import initialize_agent, AgentType
 from google.api_core.exceptions import ResourceExhausted
@@ -69,10 +57,7 @@ class EnhancedGAIAAgent:
             context_info = ""
             if task_file_path:
                 context_info = f"\nAttached file path: {task_file_path}\n"
-            
-            # prompt = self._prepare_prompt(question + context_info)
-            # response = self.llm.invoke(prompt)
-            # return self._clean_answer(response)
+
             prompt = question + context_info
             
             agent_kwargs = {"system_message": self.system_prompt} if self.system_prompt else {}
@@ -86,72 +71,7 @@ class EnhancedGAIAAgent:
             )
             
             response = self._run_agent_with_retry(agent, prompt)
-            # response = agent.run(prompt)
             return self._clean_answer(response)
-            
-            # # First, check if we need to use any tools
-            # tool_used = False
-            # tool_result = None
-            
-            # # Check for file-related tasks
-            # if task_file_path:
-            #     print(f"Related file is: {task_file_path}")
-            #     if task_file_path.endswith('.csv'):
-            #         tool_result = analyze_csv_file(task_file_path, "summary")
-            #         tool_used = True
-            #     elif task_file_path.endswith(('.xlsx', '.xls')):
-            #         tool_result = analyze_excel_file(task_file_path, "summary")
-            #         tool_used = True
-            #     elif task_file_path.endswith(('.jpg', '.jpeg', '.png')):
-            #         # Check if it's a chess board image
-            #         if 'chess' in question.lower() or 'board' in question.lower():
-            #             tool_result = ChessBoardRecognitionTool.forward(image_path=task_file_path)
-            #         else:
-            #             tool_result = extract_text_from_image(task_file_path)
-            #         tool_used = True
-            #     elif task_file_path.endswith('.py'):
-            #         tool_result = PythonInterpreterTool(task_file_path)
-            #         tool_used = True
-                    
-            #     elif task_file_path.endswith(('.mp3', '.wav', '.ogg', '.m4a')):
-            #         # Process audio files
-            #         tool_result = SpeechToTextTool(task_file_path)
-            #         tool_used = True
-        
-            # # Check for URL-related tasks
-            # if not tool_used and 'http' in question.lower():
-            #     if 'youtube.com' in question.lower() or 'youtu.be' in question.lower():
-            #         # Configure Gemini for video analysis
-            #         genai.configure(api_key=self.api_key)
-            #         tool_result = analyze_youtube_video(question)
-            #         tool_used = True
-            #     elif 'code' in question.lower() or 'interpreter' in question.lower():
-            #         tool_result = PythonInterpreterTool(question)
-            #         tool_used = True
-            #     else:
-            #         tool_result = download_file_from_url(question)
-            #         tool_used = True
-                    
-            # # Check for search-related tasks
-            # if not tool_used:
-            #     if 'wiki' in question.lower():
-            #         tool_result = WikipediaSearchTool(question)
-            #         tool_used = True
-            #     else:
-            #         tool_result = DuckDuckGoSearchTool(question)
-            #         tool_used = True
-            
-            # # Prepare the prompt with tool results if available
-            # prompt = self._prepare_prompt(question)
-            # if tool_used and tool_result:
-            #     prompt += f"\nAdditional information from tools:\n{tool_result}\n"
-            
-            # # Get the answer from the model
-            # response = self.llm.invoke(prompt)
-            
-            # # Clean up the answer
-            # cleaned_answer = self._clean_answer(response)            
-            # return cleaned_answer
             
         except Exception as e:
             if self.verbose:
@@ -164,14 +84,13 @@ class EnhancedGAIAAgent:
         self.llm = ChatGoogleGenerativeAI(
             model="gemini-2.0-flash",  #  "gemini-1.5-pro-002"  "gemini-2.0-flash"
             temperature=temperature,
-            # convert_system_message_to_human=True
         )
 
-        # === Повторная попытка с задержкой ===
+        # === Retry with delay ===
     @retry(
         retry=retry_if_exception_type(ResourceExhausted),
-        wait=wait_fixed(20),  # Подождать 20 секунд при ошибке квоты
-        stop=stop_after_attempt(5)  # До 5 попыток
+        wait=wait_fixed(20),  # Wait 20 seconds
+        stop=stop_after_attempt(5)  # 5 try
     )
     def _run_agent_with_retry(self, agent, prompt: str) -> str:
         return agent.run(prompt)
@@ -180,8 +99,6 @@ class EnhancedGAIAAgent:
     def _setup_tools(self, additional_tools: Optional[List[BaseTool]]):
         """Set up the available tools."""
         self.tools = [
-            # DuckDuckGoSearchTool(),
-            # WikipediaSearchTool(),
             PythonREPLTool(),
             analyze_youtube_video,
             extract_text_from_image,
@@ -189,14 +106,11 @@ class EnhancedGAIAAgent:
             read_excel_file,
             search_web,
             search_wikipedia,
-            # is_reversed_text,
             fix_reversed_text,
             arvix_search,
-            # youtube_transcript,
             read_file,
             chess_board_recognition,
             audio_transcriber,
-            # search_wikipedia_info,
         ]
         if additional_tools:
             self.tools.extend(additional_tools)
@@ -281,12 +195,7 @@ class EnhancedGAIAAgent:
             The prepared prompt
         """
         prompt = self.system_prompt + "\n\n"
-        
         prompt += f"Question: {question}\n\n"
-        # prompt += "--- RESPONSE FORMAT ---\n"
-        # prompt += "FINAL ANSWER: [your_answer]\n"
-        # prompt += "--- END FORMAT ---\n\n"
-        # prompt += "Please be brief, return only FINAL ANSWER: [your answer]"
         
         return prompt
 
@@ -298,7 +207,7 @@ class EnhancedGAIAAgent:
         input_key="input",
         output_key="output"
     ) 
-        
+
     def _clean_answer(self, answer: any) -> str:
         """
         Clean up the answer to match the required format.
